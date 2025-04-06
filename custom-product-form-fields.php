@@ -187,6 +187,7 @@ add_action('wp_enqueue_scripts', function () {
     }
 });
 
+
 // Render form on product page
 add_action('woocommerce_before_add_to_cart_button', function () {
     global $product;
@@ -203,7 +204,8 @@ add_action('woocommerce_before_add_to_cart_button', function () {
                 echo '<p><label>' . esc_html($field['label']) . '</label><br>';
                 $options = [];
                 if (!empty($field['options'])) {
-                    foreach (explode("\n", $field['options']) as $line) {
+                    foreach (explode("
+", $field['options']) as $line) {
                         [$label, $price] = array_map('trim', explode(':', $line) + [null, 0]);
                         if ($label) $options[] = ['label' => $label, 'price' => (float)$price];
                     }
@@ -233,19 +235,21 @@ add_action('woocommerce_before_add_to_cart_button', function () {
                 echo '</p>';
             }
             echo '</div>';
-            break;
         }
     }
 });
 
+
+// Save form data to cart
 // Save form data to cart
 add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product_id) {
     $forms = get_option('cpff_forms', []);
+    $custom_data = [];
+    $extra_price = 0;
+
     foreach ($forms as $formIndex => $form) {
         if (!isset($_POST["cpff_nonce_field_$formIndex"]) || !wp_verify_nonce($_POST["cpff_nonce_field_$formIndex"], "cpff_form_nonce_$formIndex")) continue;
 
-        $custom_data = [];
-        $extra_price = 0;
         foreach ($form['fields'] as $i => $field) {
             $name = "cpff_{$formIndex}_{$i}";
             if (!isset($_POST[$name])) continue;
@@ -273,13 +277,17 @@ add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product
                 }
             }
         }
+    }
+
+    if (!empty($custom_data)) {
         $cart_item_data['cpff_fields'] = $custom_data;
         $cart_item_data['cpff_extra_price'] = $extra_price;
         $cart_item_data['unique_key'] = md5(microtime() . rand());
-        break;
     }
+
     return $cart_item_data;
 }, 10, 2);
+
 
 // Display in cart/checkout
 add_filter('woocommerce_get_item_data', function ($item_data, $cart_item) {
