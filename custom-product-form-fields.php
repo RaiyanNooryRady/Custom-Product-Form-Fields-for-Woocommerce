@@ -175,7 +175,7 @@ function cpff_render_form($formIndex, $form, $categories)
                                 <input type="checkbox"
                                     name="cpff_forms[<?php echo $formIndex; ?>][fields][<?php echo $fieldIndex; ?>][multiply_base]"
                                     <?php checked(!empty($field['multiply_base'])); ?>>
-                                Multiply by product price
+                                Multiply by product base price
                             </label>
                             <br>
                             <input type="number" step="any" min="0"
