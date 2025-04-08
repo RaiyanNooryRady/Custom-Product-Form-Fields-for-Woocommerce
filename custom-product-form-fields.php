@@ -256,6 +256,9 @@ add_action('wp_enqueue_scripts', function () {
 add_action('woocommerce_before_add_to_cart_button', function () {
     global $product;
     $forms = get_option('cpff_forms', []);
+    if (!is_array($forms)) {
+        $forms = [];
+    }
     $forms = array_values($forms);
     $product_categories = $product->get_category_ids();
 
@@ -317,6 +320,9 @@ add_action('woocommerce_before_add_to_cart_button', function () {
 // Save to cart
 add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product_id) {
     $forms = get_option('cpff_forms', []);
+    if (!is_array($forms)) {
+        $forms = [];
+    }
     $forms = array_values($forms);
     $custom_data = [];
     $extra_price = 0;
