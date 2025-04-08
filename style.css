@@ -1,6 +1,9 @@
-.woocommerce-js .quantity .qty, .wc-block-components-quantity-selector {
+.woocommerce-js .quantity .qty {
     display: none !important;
 }
+/* .wc-block-components-quantity-selector{
+    display: none !important;
+} */
 .cpff-custom-form{
     padding: 12px;
     border: 1px solid #eee;

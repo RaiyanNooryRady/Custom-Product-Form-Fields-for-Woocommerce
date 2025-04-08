@@ -126,6 +126,11 @@ function cpff_render_forms_page()
                     field.appendChild(multiplyCheckbox);
                     wrapper.appendChild(field);
                 }
+                if (e.target.classList.contains('cpff-delete-form')) {
+                    if (confirm('Are you sure you want to delete this entire form?')) {
+                        e.target.closest('.cpff-form').remove();
+                    }
+                }
             });
         });
     </script>
@@ -183,6 +188,7 @@ function cpff_render_form($formIndex, $form, $categories)
                 <?php endforeach; endif; ?>
         </div>
         <button type="button" class="button add-field" data-form="<?php echo $formIndex; ?>">+ Add Field</button>
+        <button type="button" class="button cpff-delete-form">❌ Delete Form</button>
     </div>
     <?php
 }
@@ -347,8 +353,7 @@ add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product
                 } elseif (!empty($field['custom_price'])) {
                     $extra_price += floatval($field['custom_price']) * $val;
                 }
-            }
-             elseif (is_array($value)) {
+            } elseif (is_array($value)) {
                 foreach ($value as $val) {
                     foreach ($options as $opt) {
                         if ($opt['label'] === $val)
