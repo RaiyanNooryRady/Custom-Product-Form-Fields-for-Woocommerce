@@ -22,6 +22,8 @@ function cpff_render_forms_page()
     $forms = get_option('cpff_forms', []);
     if (!is_array($forms))
         $forms = [];
+    // ✅ Step 1 — force reindex to 0,1,2,...
+    $forms = array_values($forms);
     $categories = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
     ?>
     <div class="wrap">
@@ -56,11 +58,11 @@ function cpff_render_forms_page()
     <input type="text" name="cpff_forms[${formIndex}][name]" style="width:200px;"><br>
     <strong>Assign to Categories:</strong><br>
     ${<?php
-        $cat_html = '';
-        foreach ($categories as $cat) {
-            $cat_html .= "<label><input type='checkbox' name='__FORM_CAT__' value='{$cat->term_id}'> {$cat->name}</label><br>";
-        }
-        echo json_encode($cat_html);
+    $cat_html = '';
+    foreach ($categories as $cat) {
+        $cat_html .= "<label><input type='checkbox' name='__FORM_CAT__' value='{$cat->term_id}'> {$cat->name}</label><br>";
+    }
+    echo json_encode($cat_html);
     ?>.replace(/__FORM_CAT__/g, 'cpff_forms[' + formIndex + '][categories][]')}
     <h4>Form Fields:</h4>
     <div class="cpff-fields" data-form="${formIndex}"></div>
@@ -211,6 +213,7 @@ add_action('woocommerce_before_add_to_cart_button', function () {
         if (array_intersect($form['categories'], $product_categories)) {
             echo '<div class="cpff-custom-form">';
             wp_nonce_field('cpff_form_nonce_' . $formIndex, 'cpff_nonce_field_' . $formIndex);
+            if (!isset($form['fields']) || !is_array($form['fields'])) continue;
             foreach ($form['fields'] as $i => $field) {
                 $name = "cpff_{$formIndex}_{$i}";
                 echo '<p><label>' . esc_html($field['label']) . '</label><br>';
