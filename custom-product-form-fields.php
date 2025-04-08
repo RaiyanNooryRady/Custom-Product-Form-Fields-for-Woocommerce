@@ -266,7 +266,7 @@ add_action('woocommerce_before_add_to_cart_button', function () {
         if (!isset($form['categories'], $form['fields']))
             continue;
         if (array_intersect($form['categories'], $product_categories)) {
-            echo '<div class="cpff-custom-form">';
+            echo '<div class="cpff-custom-form" id="' . esc_attr($form['form_id'] ?? 'cpff_custom_form_' . $formIndex) . '">';
             echo '<h4 style="font-weight:bold;">' . esc_html($form['name']) . '</h4>'; // ✅ Show Form Name
             wp_nonce_field('cpff_form_nonce_' . $formIndex, 'cpff_nonce_field_' . $formIndex);
 
