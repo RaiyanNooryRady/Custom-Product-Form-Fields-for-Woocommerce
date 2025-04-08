@@ -1,0 +1,3 @@
+.woocommerce-js .quantity .qty, .wc-block-components-quantity-selector {
+    display: none !important;
+}

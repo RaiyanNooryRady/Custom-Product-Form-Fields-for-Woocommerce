@@ -215,6 +215,7 @@ add_action('wp_enqueue_scripts', function () {
             });
         ");
     }
+    wp_enqueue_style('style-css',plugin_dir_url(__FILE__).'style.css');
 });
 
 // Render form on single product page
