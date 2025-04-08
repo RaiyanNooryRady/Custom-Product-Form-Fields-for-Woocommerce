@@ -2,8 +2,8 @@
 /*
 Plugin Name: Custom Product Form Fields PRO
 Description: WooCommerce plugin with proper DOM logic for dynamic field creation, form saving, live price update, and multiple forms.
-Version: 3.4
-Author: Michel
+Version: 1.0
+Author: Raiyan Noory
 */
 
 if (!defined('ABSPATH'))
@@ -52,20 +52,21 @@ function cpff_render_forms_page()
 
                 const html = document.createElement('div');
                 html.innerHTML = `
-            <label>Form Name:</label>
-            <input type="text" name="cpff_forms[\${formIndex}][name]" style="width:200px;"><br>
-            <strong>Assign to Categories:</strong><br>
-            ${<?php
-            $cat_html = '';
-            foreach ($categories as $cat) {
-                $cat_html .= "<label><input type='checkbox' name='cpff_forms[__INDEX__][categories][]' value='{$cat->term_id}'> {$cat->name}</label><br>";
-            }
-            echo json_encode($cat_html);
-            ?>.replace(/__INDEX__/g, '${formIndex}')}
-            <h4>Form Fields:</h4>
-            <div class="cpff-fields" data-form="\${formIndex}"></div>
-            <button type="button" class="button add-field" data-form="\${formIndex}">+ Add Field</button>
-        `.replace(/\\${formIndex}/g, formIndex);
+    <label>Form Name:</label>
+    <input type="text" name="cpff_forms[${formIndex}][name]" style="width:200px;"><br>
+    <strong>Assign to Categories:</strong><br>
+    ${<?php
+        $cat_html = '';
+        foreach ($categories as $cat) {
+            $cat_html .= "<label><input type='checkbox' name='__FORM_CAT__' value='{$cat->term_id}'> {$cat->name}</label><br>";
+        }
+        echo json_encode($cat_html);
+    ?>.replace(/__FORM_CAT__/g, 'cpff_forms[' + formIndex + '][categories][]')}
+    <h4>Form Fields:</h4>
+    <div class="cpff-fields" data-form="${formIndex}"></div>
+    <button type="button" class="button add-field" data-form="${formIndex}">+ Add Field</button>
+`;
+
 
                 formDiv.appendChild(html);
                 wrapper.appendChild(formDiv);
