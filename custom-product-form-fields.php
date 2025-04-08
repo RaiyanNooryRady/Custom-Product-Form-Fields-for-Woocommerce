@@ -110,7 +110,14 @@ function cpff_render_forms_page()
                 <input type="checkbox" name="cpff_forms[${formId}][fields][${fieldIndex}][multiply_base]">
                 Multiply by product price
             `;
+                    const customPriceInput = document.createElement('input');
+                    customPriceInput.type = 'number';
+                    customPriceInput.step = 'any';
+                    customPriceInput.min = '0';
+                    customPriceInput.name = `cpff_forms[${formId}][fields][${fieldIndex}][custom_price]`;
+                    customPriceInput.placeholder = 'Custom Price (used if multiply unchecked)';
 
+                    field.appendChild(customPriceInput);
                     field.appendChild(removeBtn);
                     field.appendChild(document.createElement('br'));
                     field.appendChild(typeSelect);
@@ -165,6 +172,12 @@ function cpff_render_form($formIndex, $form, $categories)
                                     <?php checked(!empty($field['multiply_base'])); ?>>
                                 Multiply by product price
                             </label>
+                            <br>
+                            <input type="number" step="any" min="0"
+                                name="cpff_forms[<?php echo $formIndex; ?>][fields][<?php echo $fieldIndex; ?>][custom_price]"
+                                value="<?php echo esc_attr($field['custom_price'] ?? ''); ?>"
+                                placeholder="Custom Price (used if multiply unchecked)">
+
                         <?php endif; ?>
                     </div>
                 <?php endforeach; endif; ?>
@@ -183,6 +196,7 @@ function cpff_render_form($formIndex, $form, $categories)
 add_action('wp_enqueue_scripts', function () {
     if (is_product()) {
         wp_enqueue_script('jquery');
+
         wp_add_inline_script('jquery', "
             jQuery(document).ready(function($) {
                 const saleEl = $('.product .price ins .amount').first();
@@ -191,20 +205,31 @@ add_action('wp_enqueue_scripts', function () {
 
                 function updateTotalPrice() {
                     let extra = 0;
+
                     $('.cpff-custom-form').find('input, select').each(function () {
                         const \$el = $(this);
                         const type = \$el.attr('type');
+
                         if ((type === 'checkbox' || type === 'radio') && \$el.is(':checked')) {
                             extra += parseFloat(\$el.data('price')) || 0;
+
                         } else if (\$el.is('select')) {
                             extra += parseFloat(\$el.find('option:selected').data('price')) || 0;
-                        } else if (type === 'number' && \$el.data('multiply') == 1) {
+
+                        } else if (type === 'number') {
                             const val = parseFloat(\$el.val()) || 0;
-                            if (val > 1) {
-    extra += basePrice * (val - 1);
-}
+                            const multiply = parseInt(\$el.data('multiply'));
+                            const custom = parseFloat(\$el.data('custom')) || 0;
+
+                            if (multiply === 1 && val > 1) {
+                                extra += basePrice * (val - 1);
+
+                            } else if (multiply === 0 && val > 0) {
+                                extra += custom * val;
+                            }
                         }
                     });
+
                     const newTotal = (basePrice + extra).toFixed(2);
                     if (saleEl.length) saleEl.text('$' + newTotal);
                     else baseEl.text('$' + newTotal);
@@ -215,8 +240,11 @@ add_action('wp_enqueue_scripts', function () {
             });
         ");
     }
-    wp_enqueue_style('style-css',plugin_dir_url(__FILE__).'style.css');
+
+    // Load custom styles
+    wp_enqueue_style('style-css', plugin_dir_url(__FILE__) . 'style.css');
 });
+
 
 // Render form on single product page
 add_action('woocommerce_before_add_to_cart_button', function () {
@@ -254,8 +282,9 @@ add_action('woocommerce_before_add_to_cart_button', function () {
                         echo '<input type="' . esc_attr($field['type']) . '" name="' . esc_attr($name) . '">';
                         break;
                     case 'number':
-                        $mult = !empty($field['multiply_base']) ? ' data-multiply="1"' : '';
-                        echo '<input type="number" name="' . esc_attr($name) . '"' . $mult . '>';
+                        $mult = !empty($field['multiply_base']) ? '1' : '0';
+                        $custom_price = isset($field['custom_price']) ? (float) $field['custom_price'] : 0;
+                        echo '<input type="number" name="' . esc_attr($name) . '" data-multiply="' . esc_attr($mult) . '" data-custom="' . esc_attr($custom_price) . '" min="1" value="1">';
                         break;
                     case 'dropdown':
                         echo '<select name="' . esc_attr($name) . '">';
@@ -309,11 +338,17 @@ add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product
                 }
             }
 
-            if ($field['type'] === 'number' && !empty($field['multiply_base']) && is_numeric($value)) {
-                $product = wc_get_product($product_id);
-                $base = $product->get_sale_price() ?: $product->get_regular_price();
-                $extra_price += $base * floatval($value - 1);
-            } elseif (is_array($value)) {
+            if ($field['type'] === 'number' && is_numeric($value)) {
+                $val = floatval($value);
+                if (!empty($field['multiply_base'])) {
+                    $product = wc_get_product($product_id);
+                    $base = $product->get_sale_price() ?: $product->get_regular_price();
+                    $extra_price += $base * ($val - 1);
+                } elseif (!empty($field['custom_price'])) {
+                    $extra_price += floatval($field['custom_price']) * $val;
+                }
+            }
+             elseif (is_array($value)) {
                 foreach ($value as $val) {
                     foreach ($options as $opt) {
                         if ($opt['label'] === $val)
