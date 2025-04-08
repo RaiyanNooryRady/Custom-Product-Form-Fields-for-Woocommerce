@@ -22,7 +22,6 @@ function cpff_render_forms_page()
     $forms = get_option('cpff_forms', []);
     if (!is_array($forms))
         $forms = [];
-    // ✅ Step 1 — force reindex to 0,1,2,...
     $forms = array_values($forms);
     $categories = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
     ?>
@@ -39,11 +38,9 @@ function cpff_render_forms_page()
             <?php submit_button(); ?>
         </form>
     </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             let formIndex = document.querySelectorAll('.cpff-form').length;
-
             document.getElementById('cpff-add-form').addEventListener('click', function () {
                 const wrapper = document.getElementById('cpff-forms-wrapper');
                 const formDiv = document.createElement('div');
@@ -51,25 +48,22 @@ function cpff_render_forms_page()
                 formDiv.style.border = '1px solid #ccc';
                 formDiv.style.padding = '10px';
                 formDiv.style.marginBottom = '20px';
-
                 const html = document.createElement('div');
                 html.innerHTML = `
-    <label>Form Name:</label>
-    <input type="text" name="cpff_forms[${formIndex}][name]" style="width:200px;"><br>
-    <strong>Assign to Categories:</strong><br>
-    ${<?php
-    $cat_html = '';
-    foreach ($categories as $cat) {
-        $cat_html .= "<label><input type='checkbox' name='__FORM_CAT__' value='{$cat->term_id}'> {$cat->name}</label><br>";
-    }
-    echo json_encode($cat_html);
-    ?>.replace(/__FORM_CAT__/g, 'cpff_forms[' + formIndex + '][categories][]')}
-    <h4>Form Fields:</h4>
-    <div class="cpff-fields" data-form="${formIndex}"></div>
-    <button type="button" class="button add-field" data-form="${formIndex}">+ Add Field</button>
-`;
-
-
+            <label>Form Name:</label>
+            <input type="text" name="cpff_forms[${formIndex}][name]" style="width:200px;"><br>
+            <strong>Assign to Categories:</strong><br>
+            ${<?php
+            $cat_html = '';
+            foreach ($categories as $cat) {
+                $cat_html .= "<label><input type='checkbox' name='__FORM_CAT__' value='{$cat->term_id}'> {$cat->name}</label><br>";
+            }
+            echo json_encode($cat_html);
+            ?>.replace(/__FORM_CAT__/g, 'cpff_forms[' + formIndex + '][categories][]')}
+            <h4>Form Fields:</h4>
+            <div class="cpff-fields" data-form="${formIndex}"></div>
+            <button type="button" class="button add-field" data-form="${formIndex}">+ Add Field</button>
+        `;
                 formDiv.appendChild(html);
                 wrapper.appendChild(formDiv);
                 formIndex++;
@@ -111,11 +105,18 @@ function cpff_render_forms_page()
                     optionsTextarea.name = `cpff_forms[${formId}][fields][${fieldIndex}][options]`;
                     optionsTextarea.placeholder = 'Options (label:price)';
 
+                    const multiplyCheckbox = document.createElement('label');
+                    multiplyCheckbox.innerHTML = `
+                <input type="checkbox" name="cpff_forms[${formId}][fields][${fieldIndex}][multiply_base]">
+                Multiply by product price
+            `;
+
                     field.appendChild(removeBtn);
                     field.appendChild(document.createElement('br'));
                     field.appendChild(typeSelect);
                     field.appendChild(labelInput);
                     field.appendChild(optionsTextarea);
+                    field.appendChild(multiplyCheckbox);
                     wrapper.appendChild(field);
                 }
             });
@@ -157,6 +158,14 @@ function cpff_render_form($formIndex, $form, $categories)
                             value="<?php echo esc_attr($field['label']); ?>" placeholder="Label">
                         <textarea name="cpff_forms[<?php echo $formIndex; ?>][fields][<?php echo $fieldIndex; ?>][options]"
                             placeholder="Options (label:price)"><?php echo esc_textarea($field['options'] ?? ''); ?></textarea>
+                        <?php if ($field['type'] === 'number'): ?>
+                            <label>
+                                <input type="checkbox"
+                                    name="cpff_forms[<?php echo $formIndex; ?>][fields][<?php echo $fieldIndex; ?>][multiply_base]"
+                                    <?php checked(!empty($field['multiply_base'])); ?>>
+                                Multiply by product price
+                            </label>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; endif; ?>
         </div>
@@ -167,9 +176,10 @@ function cpff_render_form($formIndex, $form, $categories)
 ?>
 
 
-
 <?php
-// Frontend Scripts for live price update using sale price if present
+// === FRONTEND & PRICE LOGIC ===
+
+// Enqueue frontend script for live price update
 add_action('wp_enqueue_scripts', function () {
     if (is_product()) {
         wp_enqueue_script('jquery');
@@ -178,33 +188,40 @@ add_action('wp_enqueue_scripts', function () {
                 const saleEl = $('.product .price ins .amount').first();
                 const baseEl = $('.product .price .amount').first();
                 let basePrice = saleEl.length ? parseFloat(saleEl.text().replace(/[^0-9.]/g, '')) : parseFloat(baseEl.text().replace(/[^0-9.]/g, ''));
+
                 function updateTotalPrice() {
                     let extra = 0;
-                    $('.cpff-custom-form').find('input, select').each(function() {
+                    $('.cpff-custom-form').find('input, select').each(function () {
                         const \$el = $(this);
                         const type = \$el.attr('type');
                         if ((type === 'checkbox' || type === 'radio') && \$el.is(':checked')) {
                             extra += parseFloat(\$el.data('price')) || 0;
                         } else if (\$el.is('select')) {
                             extra += parseFloat(\$el.find('option:selected').data('price')) || 0;
+                        } else if (type === 'number' && \$el.data('multiply') == 1) {
+                            const val = parseFloat(\$el.val()) || 0;
+                            if (val > 1) {
+    extra += basePrice * (val - 1);
+}
                         }
                     });
                     const newTotal = (basePrice + extra).toFixed(2);
                     if (saleEl.length) saleEl.text('$' + newTotal);
                     else baseEl.text('$' + newTotal);
                 }
-                $(document).on('change', '.cpff-custom-form input, .cpff-custom-form select', updateTotalPrice);
+
+                $(document).on('input change', '.cpff-custom-form input, .cpff-custom-form select', updateTotalPrice);
                 updateTotalPrice();
             });
         ");
     }
 });
 
-
-// Render form on product page
+// Render form on single product page
 add_action('woocommerce_before_add_to_cart_button', function () {
     global $product;
     $forms = get_option('cpff_forms', []);
+    $forms = array_values($forms);
     $product_categories = $product->get_category_ids();
 
     foreach ($forms as $formIndex => $form) {
@@ -213,26 +230,30 @@ add_action('woocommerce_before_add_to_cart_button', function () {
         if (array_intersect($form['categories'], $product_categories)) {
             echo '<div class="cpff-custom-form">';
             wp_nonce_field('cpff_form_nonce_' . $formIndex, 'cpff_nonce_field_' . $formIndex);
-            if (!isset($form['fields']) || !is_array($form['fields'])) continue;
+
             foreach ($form['fields'] as $i => $field) {
                 $name = "cpff_{$formIndex}_{$i}";
                 echo '<p><label>' . esc_html($field['label']) . '</label><br>';
                 $options = [];
+
                 if (!empty($field['options'])) {
-                    foreach (explode("
-", $field['options']) as $line) {
+                    foreach (explode("\n", $field['options']) as $line) {
                         [$label, $price] = array_map('trim', explode(':', $line) + [null, 0]);
                         if ($label)
                             $options[] = ['label' => $label, 'price' => (float) $price];
                     }
                 }
+
                 switch ($field['type']) {
                     case 'text':
                     case 'email':
-                    case 'number':
                     case 'date':
                     case 'color':
                         echo '<input type="' . esc_attr($field['type']) . '" name="' . esc_attr($name) . '">';
+                        break;
+                    case 'number':
+                        $mult = !empty($field['multiply_base']) ? ' data-multiply="1"' : '';
+                        echo '<input type="number" name="' . esc_attr($name) . '"' . $mult . '>';
                         break;
                     case 'dropdown':
                         echo '<select name="' . esc_attr($name) . '">';
@@ -250,21 +271,23 @@ add_action('woocommerce_before_add_to_cart_button', function () {
                 }
                 echo '</p>';
             }
+
             echo '</div>';
         }
     }
 });
 
-
-// Save form data to cart
-// Save form data to cart
+// Save to cart
 add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product_id) {
     $forms = get_option('cpff_forms', []);
+    $forms = array_values($forms);
     $custom_data = [];
     $extra_price = 0;
 
     foreach ($forms as $formIndex => $form) {
         if (!isset($_POST["cpff_nonce_field_$formIndex"]) || !wp_verify_nonce($_POST["cpff_nonce_field_$formIndex"], "cpff_form_nonce_$formIndex"))
+            continue;
+        if (!isset($form['fields']) || !is_array($form['fields']))
             continue;
 
         foreach ($form['fields'] as $i => $field) {
@@ -284,7 +307,11 @@ add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product
                 }
             }
 
-            if (is_array($value)) {
+            if ($field['type'] === 'number' && !empty($field['multiply_base']) && is_numeric($value)) {
+                $product = wc_get_product($product_id);
+                $base = $product->get_sale_price() ?: $product->get_regular_price();
+                $extra_price += $base * floatval($value - 1);
+            } elseif (is_array($value)) {
                 foreach ($value as $val) {
                     foreach ($options as $opt) {
                         if ($opt['label'] === $val)
@@ -309,7 +336,6 @@ add_filter('woocommerce_add_cart_item_data', function ($cart_item_data, $product
     return $cart_item_data;
 }, 10, 2);
 
-
 // Display in cart/checkout
 add_filter('woocommerce_get_item_data', function ($item_data, $cart_item) {
     if (!empty($cart_item['cpff_fields'])) {
@@ -320,7 +346,7 @@ add_filter('woocommerce_get_item_data', function ($item_data, $cart_item) {
     return $item_data;
 }, 10, 2);
 
-// Adjust product price (not multiplied by quantity)
+// Adjust product price (do not multiply by quantity)
 add_action('woocommerce_before_calculate_totals', function ($cart) {
     if (is_admin() && !defined('DOING_AJAX'))
         return;
