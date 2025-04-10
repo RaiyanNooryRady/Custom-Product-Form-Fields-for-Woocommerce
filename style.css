@@ -12,3 +12,13 @@
     box-shadow: 0 0 5px #eee;
     overflow: hidden;
 }
+
+/**
+This styles are for hosannaunom website
+*/
+
+a.button.product_type_simple.add_to_cart_button.ajax_add_to_cart, #cpff_custom_form_1, #cpff_custom_form_2 {
+    display: none;
+}
+
+/* End Hosannunom styles */
